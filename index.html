@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>黄金均价计算器</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='46' fill='%23b8860b'/%3E%3Ccircle cx='50' cy='50' r='36' fill='none' stroke='%23fdf6e3' stroke-width='4'/%3E%3Ctext x='50' y='63' font-size='40' text-anchor='middle' fill='%23fdf6e3' font-family='serif' font-weight='bold'%3E金%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    --gold: #b8860b;
+    --gold-light: #fdf6e3;
+    --gold-border: #e8d9a8;
+    --text: #2d2a24;
+    --text-sub: #8a8375;
+    --green: #1a8a4a;
+    --green-bg: #e8f5ee;
+    --red: #c0392b;
+    --red-bg: #fdecea;
+    --card: #ffffff;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+    background: #f7f4ec;
+    color: var(--text);
+    line-height: 1.6;
+    padding-bottom: 60px;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 16px; }
+
+  header { text-align: center; padding: 32px 16px 8px; }
+  header h1 { font-size: 26px; letter-spacing: 1px; }
+  header h1 .coin { color: var(--gold); }
+  header p { color: var(--text-sub); font-size: 13px; margin-top: 4px; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--gold-border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin: 16px 0;
+    box-shadow: 0 2px 8px rgba(184, 134, 11, 0.06);
+  }
+  .card h2 {
+    font-size: 16px; margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+  }
+  .card h2::before {
+    content: ""; width: 4px; height: 16px; background: var(--gold); border-radius: 2px; display: inline-block;
+  }
+  .card h2 .tag { font-size: 12px; font-weight: normal; color: var(--text-sub); margin-left: auto; }
+
+  /* 概览 */
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .stat {
+    background: var(--gold-light); border-radius: 10px; padding: 12px 10px; text-align: center;
+  }
+  .stat .label { font-size: 12px; color: var(--text-sub); }
+  .stat .value { font-size: 20px; font-weight: 700; color: var(--gold); margin-top: 2px; word-break: break-all; }
+  .stat .value small { font-size: 12px; font-weight: normal; }
+  .empty-tip { text-align: center; color: var(--text-sub); font-size: 13px; padding: 6px 0 2px; }
+
+  /* 表单 */
+  .row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .field { flex: 1; min-width: 140px; }
+  .field label { display: block; font-size: 13px; color: var(--text-sub); margin-bottom: 4px; }
+  .field input, .field select {
+    width: 100%; padding: 9px 12px; border: 1px solid #ddd3ba; border-radius: 8px;
+    font-size: 15px; background: #fffdf8; color: var(--text); outline: none;
+  }
+  .field input:focus { border-color: var(--gold); background: #fff; }
+  .field input::-webkit-outer-spin-button, .field input::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+  /* 模式切换 */
+  .tabs { display: flex; background: #f0ead6; border-radius: 8px; padding: 3px; margin-bottom: 14px; }
+  .tabs button {
+    flex: 1; border: none; background: transparent; padding: 7px 10px; border-radius: 6px;
+    font-size: 14px; color: var(--text-sub); cursor: pointer; transition: all .15s;
+  }
+  .tabs button.active { background: #fff; color: var(--gold); font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+
+  .btn {
+    display: inline-block; border: none; border-radius: 8px; padding: 10px 22px;
+    font-size: 15px; cursor: pointer; transition: opacity .15s;
+  }
+  .btn-gold { background: var(--gold); color: #fff; width: 100%; font-weight: 600; }
+  .btn-gold:hover { opacity: .9; }
+  .btn-ghost {
+    background: transparent; border: 1px solid #ddd3ba; color: var(--text-sub);
+    padding: 6px 14px; font-size: 13px;
+  }
+  .btn-ghost:hover { border-color: var(--red); color: var(--red); }
+
+  /* 模拟结果 */
+  .result-box {
+    background: var(--gold-light); border-radius: 10px; padding: 14px 16px; margin-top: 14px;
+    font-size: 14px; display: none;
+  }
+  .result-box.show { display: block; }
+  .result-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 16px; margin-bottom: 10px; }
+  .result-grid .item .k { font-size: 12px; color: var(--text-sub); }
+  .result-grid .item .v { font-size: 16px; font-weight: 600; word-break: break-all; }
+  .main-result {
+    border-top: 1px dashed var(--gold-border); padding-top: 10px; text-align: center;
+  }
+  .main-result .k { font-size: 13px; color: var(--text-sub); }
+  .main-result .v { font-size: 26px; font-weight: 800; color: var(--gold); }
+  .delta { text-align: center; font-size: 13px; margin-top: 4px; }
+  .delta .down { color: var(--green); background: var(--green-bg); border-radius: 4px; padding: 1px 8px; }
+  .delta .up { color: var(--red); background: var(--red-bg); border-radius: 4px; padding: 1px 8px; }
+  .hint { font-size: 12px; color: var(--text-sub); margin-top: 6px; text-align: center; }
+
+  /* 目标均价 */
+  .target-result { margin-top: 12px; font-size: 14px; display: none; }
+  .target-result.show { display: block; }
+  .target-result .ok { background: var(--green-bg); color: var(--green); border-radius: 8px; padding: 10px 14px; }
+  .target-result .bad { background: var(--red-bg); color: var(--red); border-radius: 8px; padding: 10px 14px; }
+
+  /* 历史记录 */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: var(--text-sub); font-weight: normal; padding: 6px 4px; border-bottom: 1px solid var(--gold-border); white-space: nowrap; }
+  td { padding: 8px 4px; border-bottom: 1px solid #f2ecdb; white-space: nowrap; }
+  td.num { font-variant-numeric: tabular-nums; }
+  .mode-badge {
+    display: inline-block; font-size: 11px; border-radius: 4px; padding: 1px 6px;
+    background: #f0ead6; color: var(--gold);
+  }
+  .del-btn {
+    background: none; border: none; color: #c8c0ae; font-size: 16px; cursor: pointer; padding: 2px 6px;
+  }
+  .del-btn:hover { color: var(--red); }
+  .summary-row td { border-bottom: none; font-weight: 700; color: var(--gold); border-top: 1px solid var(--gold-border); }
+  .table-scroll { overflow-x: auto; }
+  .list-head { display: flex; align-items: center; margin-bottom: 10px; }
+  .list-head .btn-ghost { margin-left: auto; }
+
+  footer { text-align: center; color: var(--text-sub); font-size: 12px; margin-top: 24px; }
+  footer .dot { margin: 0 6px; }
+
+  @media (max-width: 520px) {
+    .stats { grid-template-columns: 1fr 1fr; }
+    .stat:first-child { grid-column: span 2; }
+    .result-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span class="coin">◎</span> 黄金均价计算器</h1>
+  <p>持仓均价 · 加仓模拟 · 目标均价反算</p>
+</header>
+
+<div class="wrap">
+
+  <!-- 持仓概览 -->
+  <section class="card">
+    <h2>当前持仓概览 <span class="tag" id="recordCount"></span></h2>
+    <div class="stats">
+      <div class="stat"><div class="label">总克数</div><div class="value" id="statGrams">0<small> g</small></div></div>
+      <div class="stat"><div class="label">总成本</div><div class="value" id="statCost">0<small> 元</small></div></div>
+      <div class="stat"><div class="label">持仓均价</div><div class="value" id="statAvg">0<small> 元/g</small></div></div>
+    </div>
+    <div class="empty-tip" id="emptyTip">暂无持仓记录,请在下方添加历史购买记录</div>
+  </section>
+
+  <!-- 加仓模拟 -->
+  <section class="card">
+    <h2>加仓模拟</h2>
+    <div class="field" style="margin-bottom:14px;">
+      <label>当前金价(元/克)— 价格由你手动提供</label>
+      <input type="number" id="simPrice" placeholder="例如 780.50" step="0.01" min="0" inputmode="decimal">
+    </div>
+    <div class="tabs">
+      <button id="tabSimGrams" class="active" type="button">按克数买</button>
+      <button id="tabSimAmount" type="button">按金额买</button>
+    </div>
+    <div class="field">
+      <label id="simBuyLabel">本次买入克数(g)</label>
+      <input type="number" id="simBuy" placeholder="例如 5" step="0.001" min="0" inputmode="decimal">
+    </div>
+    <div class="result-box" id="simResult">
+      <div class="result-grid">
+        <div class="item"><div class="k">本次花费</div><div class="v" id="rCost">-</div></div>
+        <div class="item"><div class="k">本次克数</div><div class="v" id="rGrams">-</div></div>
+        <div class="item"><div class="k">加仓后总克数</div><div class="v" id="rNewGrams">-</div></div>
+        <div class="item"><div class="k">加仓后总成本</div><div class="v" id="rNewCost">-</div></div>
+      </div>
+      <div class="main-result">
+        <div class="k">加仓后新均价</div>
+        <div class="v" id="rNewAvg">-</div>
+        <div class="delta" id="rDelta"></div>
+      </div>
+      <div class="hint" id="simHint"></div>
+    </div>
+  </section>
+
+  <!-- 目标均价反算 -->
+  <section class="card">
+    <h2>目标均价反算</h2>
+    <div class="field">
+      <label>想通过加仓把均价摊到多少?(元/克,使用上方输入的金价)</label>
+      <input type="number" id="targetAvg" placeholder="例如 650" step="0.01" min="0" inputmode="decimal">
+    </div>
+    <div class="target-result" id="targetResult"></div>
+  </section>
+
+  <!-- 历史记录 -->
+  <section class="card">
+    <h2>添加购买记录</h2>
+    <div class="row" style="margin-bottom:14px;">
+      <div class="field" style="flex:0 0 150px;">
+        <label>购买日期</label>
+        <input type="date" id="recDate">
+      </div>
+    </div>
+    <div class="tabs">
+      <button id="tabRecGrams" class="active" type="button">按克数购买</button>
+      <button id="tabRecAmount" type="button">按金额购买</button>
+    </div>
+    <div class="row">
+      <div class="field" id="recGramsField">
+        <label>克数(g)</label>
+        <input type="number" id="recGrams" placeholder="例如 10" step="0.001" min="0" inputmode="decimal">
+      </div>
+      <div class="field" id="recAmountField" style="display:none;">
+        <label>金额(元)</label>
+        <input type="number" id="recAmount" placeholder="例如 3000" step="0.01" min="0" inputmode="decimal">
+      </div>
+      <div class="field">
+        <label>成交克价(元/克)</label>
+        <input type="number" id="recPrice" placeholder="例如 600" step="0.01" min="0" inputmode="decimal">
+      </div>
+    </div>
+    <div style="margin-top:14px;">
+      <button class="btn btn-gold" id="btnAdd" type="button">添加记录</button>
+    </div>
+    <div class="hint" id="recHint"></div>
+  </section>
+
+  <section class="card">
+    <div class="list-head">
+      <h2 style="margin:0;">历史记录 <span class="tag" id="listTag"></span></h2>
+      <button class="btn btn-ghost" id="btnClear" type="button">清空全部</button>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>日期</th><th>方式</th><th>克数</th><th>克价</th><th>金额</th><th></th></tr>
+        </thead>
+        <tbody id="recBody"></tbody>
+      </table>
+    </div>
+    <div class="empty-tip" id="emptyList" style="display:none;">暂无记录</div>
+  </section>
+
+  <footer>
+    数据仅保存在本机浏览器 localStorage 中<div class="dot">·</div>刷新或下次打开不丢失<div class="dot">·</div>清空浏览器数据前请自行备份
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var LS_RECORDS = 'goldAvgRecords';
+  var LS_PRICE = 'goldAvgLastPrice';
+
+  var records = loadRecords();
+
+  /* ---------- 工具 ---------- */
+  function loadRecords() {
+    try {
+      var raw = localStorage.getItem(LS_RECORDS);
+      var data = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(data)) return [];
+      return data.filter(function (r) {
+        return r && typeof r.grams === 'number' && isFinite(r.grams) && r.grams > 0;
+      });
+    } catch (e) { return []; }
+  }
+  function saveRecords() {
+    try { localStorage.setItem(LS_RECORDS, JSON.stringify(records)); } catch (e) {}
+  }
+  function $(id) { return document.getElementById(id); }
+  function fmt(n, d) {
+    if (!isFinite(n)) return '-';
+    return n.toLocaleString('zh-CN', { minimumFractionDigits: d, maximumFractionDigits: d });
+  }
+  function fmtMoney(n) { return fmt(n, 2) + ' 元'; }
+  function fmtGrams(n) { return fmt(n, 3) + ' g'; }
+  function num(el) {
+    var v = parseFloat(el.value);
+    return isFinite(v) ? v : NaN;
+  }
+  function todayStr() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function posTotal() {
+    var g = 0, c = 0;
+    for (var i = 0; i < records.length; i++) {
+      g += records[i].grams;
+      c += records[i].grams * records[i].price;
+    }
+    return { grams: g, cost: c, avg: g > 0 ? c / g : 0 };
+  }
+
+  /* ---------- 概览 ---------- */
+  function renderOverview() {
+    var t = posTotal();
+    $('statGrams').innerHTML = (t.grams > 0 ? fmt(t.grams, 3) : '0') + '<small> g</small>';
+    $('statCost').innerHTML = (t.cost > 0 ? fmt(t.cost, 2) : '0') + '<small> 元</small>';
+    $('statAvg').innerHTML = (t.avg > 0 ? fmt(t.avg, 2) : '0') + '<small> 元/g</small>';
+    $('recordCount').textContent = records.length ? records.length + ' 笔记录' : '';
+    $('emptyTip').style.display = records.length ? 'none' : 'block';
+  }
+
+  /* ---------- 历史记录表 ---------- */
+  function renderRecords() {
+    var body = $('recBody');
+    body.innerHTML = '';
+    $('emptyList').style.display = records.length ? 'none' : 'block';
+    $('btnClear').style.display = records.length ? 'inline-block' : 'none';
+    $('listTag').textContent = records.length ? '共 ' + records.length + ' 笔' : '';
+
+    // 新添加的排在最上面
+    for (var i = records.length - 1; i >= 0; i--) {
+      (function (rec) {
+        var tr = document.createElement('tr');
+        var amount = rec.grams * rec.price;
+        tr.innerHTML =
+          '<td>' + (rec.date || '-') + '</td>' +
+          '<td><span class="mode-badge">' + (rec.mode === 'amount' ? '按金额' : '按克数') + '</span></td>' +
+          '<td class="num">' + fmt(rec.grams, 3) + '</td>' +
+          '<td class="num">' + fmt(rec.price, 2) + '</td>' +
+          '<td class="num">' + fmt(amount, 2) + '</td>' +
+          '<td><button class="del-btn" title="删除" type="button">✕</button></td>';
+        tr.querySelector('.del-btn').addEventListener('click', function () {
+          if (confirm('确定删除这条记录?\n' + (rec.date || '') + ' · ' + fmt(rec.grams, 3) + 'g × ' + fmt(rec.price, 2) + '元/g')) {
+            records = records.filter(function (r) { return r.id !== rec.id; });
+            saveRecords();
+            renderAll();
+          }
+        });
+        body.appendChild(tr);
+      })(records[i]);
+    }
+
+    if (records.length) {
+      var t = posTotal();
+      var tr = document.createElement('tr');
+      tr.className = 'summary-row';
+      tr.innerHTML = '<td>合计</td><td></td><td class="num">' + fmt(t.grams, 3) + '</td><td class="num">' + fmt(t.avg, 2) + '</td><td class="num">' + fmt(t.cost, 2) + '</td><td></td>';
+      body.appendChild(tr);
+    }
+  }
+
+  /* ---------- 加仓模拟 ---------- */
+  var simMode = 'grams'; // grams | amount
+
+  function setSimMode(m) {
+    simMode = m;
+    $('tabSimGrams').classList.toggle('active', m === 'grams');
+    $('tabSimAmount').classList.toggle('active', m === 'amount');
+    $('simBuyLabel').textContent = m === 'grams' ? '本次买入克数(g)' : '本次花费金额(元)';
+    $('simBuy').placeholder = m === 'grams' ? '例如 5' : '例如 5000';
+    simulate();
+  }
+
+  function simulate() {
+    var box = $('simResult');
+    var price = num($('simPrice'));
+    var buy = num($('simBuy'));
+    var hint = $('simHint');
+    hint.textContent = '';
+    if (!(price > 0) || !(buy > 0)) { box.classList.remove('show'); return; }
+    box.classList.add('show');
+
+    var t = posTotal();
+    var buyGrams, buyCost;
+    if (simMode === 'grams') { buyGrams = buy; buyCost = buy * price; }
+    else { buyCost = buy; buyGrams = buy / price; }
+
+    var newGrams = t.grams + buyGrams;
+    var newCost = t.cost + buyCost;
+    var newAvg = newCost / newGrams;
+
+    $('rCost').textContent = fmtMoney(buyCost);
+    $('rGrams').textContent = fmtGrams(buyGrams);
+    $('rNewGrams').textContent = fmtGrams(newGrams);
+    $('rNewCost').textContent = fmtMoney(newCost);
+    $('rNewAvg').textContent = fmt(newAvg, 2) + ' 元/g';
+
+    var delta = $('rDelta');
+    if (t.grams > 0) {
+      var diff = newAvg - t.avg;
+      var pct = diff / t.avg * 100;
+      if (diff < -1e-9) {
+        delta.innerHTML = '<span class="down">均价拉低 ' + fmt(-diff, 2) + ' 元/g(▼ ' + fmt(-pct, 2) + '%)</span>';
+      } else if (diff > 1e-9) {
+        delta.innerHTML = '<span class="up">均价抬高 ' + fmt(diff, 2) + ' 元/g(▲ ' + fmt(pct, 2) + '%)</span>';
+      } else {
+        delta.innerHTML = '<span>均价不变(当前金价与持仓均价相同)</span>';
+      }
+    } else {
+      delta.innerHTML = '<span>当前无持仓,新均价即本次买入价</span>';
+    }
+
+    // 与当前金价比较的浮动盈亏提示
+    if (t.grams > 0) {
+      var pl = (price - t.avg) * t.grams;
+      hint.textContent = '按当前金价计算,现有持仓浮动' + (pl >= 0 ? '盈利 ' : '亏损 ') + fmt(Math.abs(pl), 2) + ' 元';
+    }
+  }
+
+  /* ---------- 目标均价反算 ---------- */
+  /*
+   * (C + P·x) / (W + x) = T  =>  x = (T·W − C) / (P − T)
+   * 仅当 T 介于 P 与当前均价之间(含端点)时有正数解。
+   */
+  function targetCalc() {
+    var box = $('targetResult');
+    var price = num($('simPrice'));
+    var target = num($('targetAvg'));
+    if (!(price > 0) || !(target > 0)) { box.classList.remove('show'); return; }
+    box.classList.add('show');
+
+    var t = posTotal();
+    var html;
+
+    if (t.grams <= 0) {
+      // 无持仓:任何买入均价都等于当前金价
+      if (Math.abs(target - price) < 1e-9) {
+        html = '<div class="ok">当前无持仓,任意克数买入均价即为 ' + fmt(target, 2) + ' 元/g</div>';
+      } else {
+        html = '<div class="bad">当前无持仓,买入均价只会等于当前金价 ' + fmt(price, 2) + ' 元/g,无法达到 ' + fmt(target, 2) + ' 元/g</div>';
+      }
+    } else if (Math.abs(price - target) < 1e-9) {
+      if (Math.abs(t.avg - target) < 1e-9) {
+        html = '<div class="ok">你的均价已经就是 ' + fmt(target, 2) + ' 元/g,无需加仓</div>';
+      } else {
+        html = '<div class="bad">无法达到:目标均价不能等于当前金价(除非现有均价已经等于它)</div>';
+      }
+    } else {
+      var x = (target * t.grams - t.cost) / (price - target);
+      if (x > 1e-9) {
+        var cost = x * price;
+        html = '<div class="ok">按金价 ' + fmt(price, 2) + ' 元/g,需再买入 <b>' + fmt(x, 3) + ' g</b>(花费约 <b>' +
+          fmt(cost, 2) + ' 元</b>),均价将从 ' + fmt(t.avg, 2) + ' 变为 ' + fmt(target, 2) + ' 元/g</div>';
+      } else if (Math.abs(t.avg - target) < 1e-9) {
+        html = '<div class="ok">你的均价已经就是 ' + fmt(target, 2) + ' 元/g,无需加仓</div>';
+      } else {
+        var low = Math.min(price, t.avg), high = Math.max(price, t.avg);
+        html = '<div class="bad">无法通过加仓达到 ' + fmt(target, 2) + ' 元/g:加仓只能把均价从当前 ' +
+          fmt(t.avg, 2) + ' 拉向买入价 ' + fmt(price, 2) + ',目标需在两者之间(' + fmt(low, 2) + ' ~ ' + fmt(high, 2) + ')</div>';
+      }
+    }
+    box.innerHTML = html;
+  }
+
+  /* ---------- 添加记录 ---------- */
+  var recMode = 'grams';
+
+  function setRecMode(m) {
+    recMode = m;
+    $('tabRecGrams').classList.toggle('active', m === 'grams');
+    $('tabRecAmount').classList.toggle('active', m === 'amount');
+    $('recGramsField').style.display = m === 'grams' ? 'block' : 'none';
+    $('recAmountField').style.display = m === 'amount' ? 'block' : 'none';
+  }
+
+  function addRecord() {
+    var price = num($('recPrice'));
+    var hint = $('recHint');
+    hint.textContent = '';
+
+    if (!(price > 0)) { hint.textContent = '请填写有效的成交克价(大于 0)'; return; }
+
+    var grams;
+    if (recMode === 'grams') {
+      var g = num($('recGrams'));
+      if (!(g > 0)) { hint.textContent = '请填写有效的克数(大于 0)'; return; }
+      grams = g;
+    } else {
+      var a = num($('recAmount'));
+      if (!(a > 0)) { hint.textContent = '请填写有效的金额(大于 0)'; return; }
+      grams = a / price;
+    }
+
+    records.push({
+      id: Date.now() + '-' + Math.floor(Math.random() * 10000),
+      date: $('recDate').value || todayStr(),
+      mode: recMode,
+      grams: grams,
+      price: price
+    });
+    saveRecords();
+    $('recGrams').value = '';
+    $('recAmount').value = '';
+    $('recPrice').value = '';
+    renderAll();
+  }
+
+  /* ---------- 事件绑定 ---------- */
+  $('tabSimGrams').addEventListener('click', function () { setSimMode('grams'); });
+  $('tabSimAmount').addEventListener('click', function () { setSimMode('amount'); });
+  $('tabRecGrams').addEventListener('click', function () { setRecMode('grams'); });
+  $('tabRecAmount').addEventListener('click', function () { setRecMode('amount'); });
+  $('btnAdd').addEventListener('click', addRecord);
+
+  $('simPrice').addEventListener('input', function () {
+    try { if (this.value) localStorage.setItem(LS_PRICE, this.value); } catch (e) {}
+    simulate();
+    targetCalc();
+  });
+  $('simBuy').addEventListener('input', simulate);
+  $('targetAvg').addEventListener('input', targetCalc);
+
+  $('btnClear').addEventListener('click', function () {
+    if (!records.length) return;
+    if (confirm('确定清空全部 ' + records.length + ' 条记录?此操作不可恢复!')) {
+      records = [];
+      saveRecords();
+      renderAll();
+      simulate();
+      targetCalc();
+    }
+  });
+
+  // 回车快捷提交
+  ['recGrams', 'recAmount', 'recPrice'].forEach(function (id) {
+    $(id).addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') addRecord();
+    });
+  });
+
+  /* ---------- 初始化 ---------- */
+  function renderAll() {
+    renderOverview();
+    renderRecords();
+    simulate();
+    targetCalc();
+  }
+
+  $('recDate').value = todayStr();
+  try {
+    var lastPrice = localStorage.getItem(LS_PRICE);
+    if (lastPrice) $('simPrice').value = lastPrice;
+  } catch (e) {}
+
+  renderAll();
+})();
+</script>
+</body>
+</html>
